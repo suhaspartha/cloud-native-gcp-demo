@@ -190,11 +190,45 @@ This stops Cloud SQL and deletes any GKE clusters. Cloud Run scales to zero auto
 
 ---
 
-### Day 2 — Cloud SQL + Secret Manager 🔜
+### Day 2 — Cloud SQL + Secret Manager ✅
 
-*Coming soon — persistent storage with zero plaintext credentials.*
+**What was built:**
+- Cloud SQL PostgreSQL 15 instance (`db-f1-micro`, no public IP)
+- Three secrets stored in Secret Manager: `db-password`, `db-username`, `db-connection-name`
+- `SecretManagerConfig` — loads all secrets at startup via GCP SDK, injects into Spring `Environment` before any datasource bean initialises. Activated only under `gcp` profile.
+- Cloud SQL Java Connector for JDBC — IAM-authenticated socket, no VPN, no IP allowlist, no manual TLS cert management
+- Flyway for schema management (`V1__create_orders_table.sql`)
+- Full CRUD REST API: `Order` entity, `OrderRepository`, `OrderService`, `OrderController`
+- HikariCP pool sized for `db-f1-micro` (max 5 connections — instance cap is 25, leaving headroom)
+- `teardown.sh` stops Cloud SQL after every session
 
-> **Spring Boot 4 note:** Ships with Hibernate 7. `@GeneratedValue` strategy defaults and some `@Column` behaviours differ from Hibernate 6. Will be documented here when Day 2 is complete.
+**Key design decisions:**
+- **No Spring Cloud GCP starter** — incompatible with Spring Boot 4 as of this writing. Cloud SQL Java Connector and Secret Manager SDK used directly instead. More explicit, same result.
+- **`--no-assign-ip` on Cloud SQL** — no public IP means no IP allowlisting, no accidental exposure. The Cloud SQL Connector authenticates via IAM and creates a TLS-encrypted socket transparently.
+- **`@Profile("gcp")` on `SecretManagerConfig`** — prevents Secret Manager calls during local development. Local dev uses `application-local.properties` with direct JDBC URL.
+- **`@Transactional(readOnly = true)` on service class** — Hibernate 7 optimises read-only transactions (skips dirty checking on flush). Write methods override with `@Transactional`.
+- **Flyway over `ddl-auto=create`** — schema changes are versioned, auditable, and safe to run repeatedly. `ddl-auto=validate` in production catches drift between entity and schema.
+- **`UUID.randomUUID()` in `@PrePersist`** — avoids the Hibernate 7 sequence generator default change. Explicit UUID assignment in Java, not delegated to the database sequence, keeps the entity portable.
+- **Two indexes on `orders` table** — `idx_orders_status` for filtered queries, `idx_orders_created_at DESC` matching the natural sort order. Mirrors the index tuning approach from Identpro PostgreSQL work.
+
+**Endpoints added:**
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/orders` | List all orders (latest first) |
+| GET | `/api/orders?status=PENDING` | Filter by status |
+| GET | `/api/orders/{id}` | Get by ID — 404 if not found |
+| POST | `/api/orders` | Create order — body: `{"item":"...","quantity":1}` |
+| PATCH | `/api/orders/{id}/status?status=SHIPPED` | Update status |
+| DELETE | `/api/orders/{id}` | Delete — returns 204 |
+
+**IAM roles added to `order-service-sa`:**
+- `roles/cloudsql.client` — required by Cloud SQL Java Connector
+- `roles/secretmanager.secretAccessor` on each secret individually (not project-wide)
+
+**Cost for Day 2:** ~€0.30 (3 hr session). Cloud SQL stopped via `teardown.sh` immediately after.
+
+---
 
 ---
 
@@ -234,7 +268,7 @@ Each service runs under a dedicated service account following least-privilege:
 
 | Service account | Service | Roles |
 |---|---|---|
-| `order-service-sa` | order-service (Cloud Run) | `logging.logWriter`, `monitoring.metricWriter`, `cloudtrace.agent` |
+| `order-service-sa` | order-service (Cloud Run) | `logging.logWriter`, `monitoring.metricWriter`, `cloudtrace.agent`, `cloudsql.client`, `secretmanager.secretAccessor` (per secret) |
 
 Roles are added incrementally as each day's features require them. No service account has `Editor` or `Owner` — those are only held by the human operator account during setup.
 

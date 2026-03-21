@@ -84,15 +84,6 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- Add to dependencies -->
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-database-postgresql</artifactId>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -117,7 +108,7 @@
 						<image>${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/order-service</image>
 						<tags>
 							<tag>latest</tag>
-							<tag>1.0.0</tag>
+							<tag>1.1.0</tag>
 						</tags>
 					</to>
 					<container>
