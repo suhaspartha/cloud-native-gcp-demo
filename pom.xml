@@ -28,26 +28,70 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<cloud-sql-connector.version>1.21.0</cloud-sql-connector.version>
+		<google-cloud-secretmanager.version>2.53.0</google-cloud-secretmanager.version>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- JPA + Hibernate 7 (managed by Spring Boot 4 BOM) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc</artifactId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- PostgreSQL JDBC driver -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!--
+            Cloud SQL Java Connector — handles IAM auth + TLS to Cloud SQL
+            without public IP or manual certificate management.
+            Use r2dbc variant only if you go reactive; jdbc variant for JPA.
+        -->
+		<dependency>
+			<groupId>com.google.cloud.sql</groupId>
+			<artifactId>jdbc-socket-factory-core</artifactId>
+			<version>${cloud-sql-connector.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud.sql</groupId>
+			<artifactId>postgres-socket-factory</artifactId>
+			<version>${cloud-sql-connector.version}</version>
 		</dependency>
 
+		<!-- Secret Manager SDK — direct, no Spring Cloud GCP needed -->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-secretmanager</artifactId>
+			<version>${google-cloud-secretmanager.version}</version>
+		</dependency>
+
+		<!-- Validation (Bean Validation 3.x, compatible with Spring Boot 4) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator-test</artifactId>
-			<scope>test</scope>
+			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<!-- Add to dependencies -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 	</dependencies>
 
